@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role { ADMIN CONTADOR ASISTENTE COBRANZAS }
+enum ClientStatus { ACTIVO INACTIVO SUSPENDIDO }
+enum ServiceType { RECURRENTE PUNTUAL }
+enum PaymentStatus { PAGADO PENDIENTE VENCIDO }
+enum ObligationStatus { PENDIENTE PRESENTADO VENCIDO }
+enum DeclarationPeriodicity { MENSUAL ANUAL }
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Client {
+  id                 String         @id @default(cuid())
+  documentType       String
+  documentNumber     String         @unique
+  businessName       String
+  taxRegime          String
+  economicActivity   String
+  complexity         String
+  status             ClientStatus   @default(ACTIVO)
+  services           Service[]
+  payments           Payment[]
+  obligations        TaxObligation[]
+  declarations       Declaration[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+
+model Service {
+  id          String      @id @default(cuid())
+  clientId    String
+  name        String
+  description String?
+  type        ServiceType
+  monthlyFee  Decimal?    @db.Decimal(10,2)
+  oneTimeFee  Decimal?    @db.Decimal(10,2)
+  isActive    Boolean     @default(true)
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  clientId    String
+  period      String
+  amount      Decimal       @db.Decimal(10,2)
+  dueDate     DateTime
+  paidAt      DateTime?
+  status      PaymentStatus @default(PENDIENTE)
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+}
+
+model TaxObligation {
+  id          String           @id @default(cuid())
+  clientId    String
+  name        String
+  dueDate     DateTime
+  status      ObligationStatus @default(PENDIENTE)
+  client      Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+}
+
+model Declaration {
+  id            String                 @id @default(cuid())
+  clientId      String
+  period        String
+  periodicity   DeclarationPeriodicity
+  submittedAt   DateTime?
+  status        String
+  client        Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt     DateTime               @default(now())
+}
+
+model Event {
+  id            String   @id @default(cuid())
+  aggregateType String
+  aggregateId   String
+  eventType     String
+  payload       Json
+  occurredAt    DateTime @default(now())
+  processedAt   DateTime?
+  metadata      Json?
+
+  @@index([aggregateType, aggregateId])
+  @@index([eventType, occurredAt])
+}
